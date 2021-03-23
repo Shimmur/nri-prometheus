@@ -48,13 +48,13 @@ type Config struct {
 	EmitterProxy                      string `mapstructure:"emitter_proxy"`
 	// Parsed version of `EmitterProxy`
 	EmitterProxyURL                              *url.URL
-	EmitterCAFile                                string            `mapstructure:"emitter_ca_file"`
-	EmitterInsecureSkipVerify                    bool              `mapstructure:"emitter_insecure_skip_verify" default:"false"`
-	TelemetryEmitterDeltaExpirationAge           time.Duration     `mapstructure:"telemetry_emitter_delta_expiration_age"`
-	TelemetryEmitterDeltaExpirationCheckInterval time.Duration     `mapstructure:"telemetry_emitter_delta_expiration_check_interval"`
-	DefinitionFilesPath                          string            `mapstructure:"definition_files_path"`
-	WorkerThreads                                int               `mapstructure:"worker_threads"`
-	UseKubernetes                                bool              `mapstructure:"use_kubernetes"`
+	EmitterCAFile                                string        `mapstructure:"emitter_ca_file"`
+	EmitterInsecureSkipVerify                    bool          `mapstructure:"emitter_insecure_skip_verify" default:"false"`
+	TelemetryEmitterDeltaExpirationAge           time.Duration `mapstructure:"telemetry_emitter_delta_expiration_age"`
+	TelemetryEmitterDeltaExpirationCheckInterval time.Duration `mapstructure:"telemetry_emitter_delta_expiration_check_interval"`
+	DefinitionFilesPath                          string        `mapstructure:"definition_files_path"`
+	WorkerThreads                                int           `mapstructure:"worker_threads"`
+	DisableKubernetes                            bool          `mapstructure:"disable_kubernetes"`
 }
 
 const maskedLicenseKey = "****"
@@ -77,7 +77,7 @@ const queueLength = 100
 
 func validateConfig(cfg *Config) error {
 	requiredMsg := "%s is required and can't be empty"
-	if cfg.ClusterName == "" && cfg.Standalone && cfg.UseKubernetes {
+	if cfg.ClusterName == "" && cfg.Standalone && !cfg.DisableKubernetes {
 		return fmt.Errorf(requiredMsg, "cluster_name")
 	}
 	if cfg.LicenseKey == "" && cfg.Standalone {
@@ -125,7 +125,7 @@ func RunWithEmitters(cfg *Config, emitters []integration.Emitter) error {
 	}
 	retrievers = append(retrievers, fixedRetriever)
 
-	if cfg.UseKubernetes && !cfg.DisableAutodiscovery {
+	if !cfg.DisableKubernetes && !cfg.DisableAutodiscovery {
 		kubernetesRetriever, err := endpoints.NewKubernetesTargetRetriever(cfg.ScrapeEnabledLabel, cfg.RequireScrapeEnabledLabelForNodes, endpoints.WithInClusterConfig())
 		if err != nil {
 			logrus.WithError(err).Errorf("not possible to get a Kubernetes client. If you aren't running this integration in a Kubernetes cluster, you can ignore this error")
@@ -147,7 +147,7 @@ func RunWithEmitters(cfg *Config, emitters []integration.Emitter) error {
 	}
 
 	// Add K8s specific stuff if we're using K8s
-	if cfg.UseKubernetes {
+	if !cfg.DisableKubernetes {
 		attributes["k8s.cluster.name"] = cfg.ClusterName
 		attributes["clusterName"] = cfg.ClusterName
 	}
