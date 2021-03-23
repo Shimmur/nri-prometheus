@@ -27,11 +27,12 @@ type Object struct {
 
 // Target is a prometheus endpoint which is exposed by an Object.
 type Target struct {
-	Name      string
-	Object    Object
-	URL       url.URL
-	metadata  labels.Set
-	TLSConfig TLSConfig
+	Name            string
+	Object          Object
+	URL             url.URL
+	metadata        labels.Set
+	TLSConfig       TLSConfig
+	MetricNamespace string
 }
 
 // Metadata returns the Target's metadata, if the current metadata is nil,
@@ -84,8 +85,8 @@ func New(name string, addr url.URL, object Object) Target {
 // For example, hostname:8080 will be interpreted as http://hostname:8080/metrics
 func EndpointToTarget(tc TargetConfig) ([]Target, error) {
 	targets := make([]Target, 0, len(tc.URLs))
-	for _, URL := range tc.URLs {
-		t, err := urlToTarget(URL, tc.TLSConfig)
+	for _, url := range tc.URLs {
+		t, err := urlToTarget(&url, tc.TLSConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -94,12 +95,12 @@ func EndpointToTarget(tc TargetConfig) ([]Target, error) {
 	return targets, nil
 }
 
-func urlToTarget(URL string, TLSConfig TLSConfig) (Target, error) {
-	if !strings.Contains(URL, "://") {
-		URL = fmt.Sprint("http://", URL)
+func urlToTarget(targetURL *TargetURL, TLSConfig TLSConfig) (Target, error) {
+	if !strings.Contains(targetURL.URL, "://") {
+		targetURL.URL = fmt.Sprint("http://", targetURL.URL)
 	}
 
-	u, err := url.Parse(URL)
+	u, err := url.Parse(targetURL.URL)
 	if err != nil {
 		return Target{}, err
 	}
@@ -114,7 +115,8 @@ func urlToTarget(URL string, TLSConfig TLSConfig) (Target, error) {
 			Kind:   "user_provided",
 			Labels: make(labels.Set),
 		},
-		TLSConfig: TLSConfig,
-		URL:       *u,
+		TLSConfig:       TLSConfig,
+		URL:             *u,
+		MetricNamespace: targetURL.MetricNamespace,
 	}, nil
 }

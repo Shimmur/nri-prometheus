@@ -54,6 +54,7 @@ type Config struct {
 	TelemetryEmitterDeltaExpirationCheckInterval time.Duration `mapstructure:"telemetry_emitter_delta_expiration_check_interval"`
 	DefinitionFilesPath                          string        `mapstructure:"definition_files_path"`
 	WorkerThreads                                int           `mapstructure:"worker_threads"`
+	DisableKubernetes                            bool          `mapstructure:"disable_kubernetes"`
 }
 
 const maskedLicenseKey = "****"
@@ -76,7 +77,7 @@ const queueLength = 100
 
 func validateConfig(cfg *Config) error {
 	requiredMsg := "%s is required and can't be empty"
-	if cfg.ClusterName == "" && cfg.Standalone {
+	if cfg.ClusterName == "" && cfg.Standalone && !cfg.DisableKubernetes {
 		return fmt.Errorf(requiredMsg, "cluster_name")
 	}
 	if cfg.LicenseKey == "" && cfg.Standalone {
@@ -124,7 +125,7 @@ func RunWithEmitters(cfg *Config, emitters []integration.Emitter) error {
 	}
 	retrievers = append(retrievers, fixedRetriever)
 
-	if !cfg.DisableAutodiscovery {
+	if !cfg.DisableKubernetes && !cfg.DisableAutodiscovery {
 		kubernetesRetriever, err := endpoints.NewKubernetesTargetRetriever(cfg.ScrapeEnabledLabel, cfg.RequireScrapeEnabledLabelForNodes, endpoints.WithInClusterConfig())
 		if err != nil {
 			logrus.WithError(err).Errorf("not possible to get a Kubernetes client. If you aren't running this integration in a Kubernetes cluster, you can ignore this error")
@@ -132,27 +133,35 @@ func RunWithEmitters(cfg *Config, emitters []integration.Emitter) error {
 			retrievers = append(retrievers, kubernetesRetriever)
 		}
 	}
+
+	attributes := map[string]interface{}{
+		// Keeping these for backward compatibility
+		"integrationVersion": integration.Version,
+		"integrationName":    integration.Name,
+		// Since the agent is not used we add the attributes manually
+		"collector.name":           integration.Name,
+		"collector.version":        integration.Version,
+		"instrumentation.name":     integration.Name,
+		"instrumentation.version":  integration.Version,
+		"instrumentation.provider": "newRelic",
+	}
+
+	// Add K8s specific stuff if we're using K8s
+	if !cfg.DisableKubernetes {
+		attributes["k8s.cluster.name"] = cfg.ClusterName
+		attributes["clusterName"] = cfg.ClusterName
+	}
+
 	defaultTransformations := integration.ProcessingRule{
 		Description: "Default transformation rules",
 		AddAttributes: []integration.AddAttributesRule{
 			{
 				MetricPrefix: "",
-				Attributes: map[string]interface{}{
-					"k8s.cluster.name": cfg.ClusterName,
-					"clusterName":      cfg.ClusterName,
-					//Keeping these for backward compatibility
-					"integrationVersion": integration.Version,
-					"integrationName":    integration.Name,
-					//Since the agent is not used we add the attributes manually
-					"collector.name":           integration.Name,
-					"collector.version":        integration.Version,
-					"instrumentation.name":     integration.Name,
-					"instrumentation.version":  integration.Version,
-					"instrumentation.provider": "newRelic",
-				},
+				Attributes:   attributes,
 			},
 		},
 	}
+
 	processingRules := append(cfg.ProcessingRules, defaultTransformations)
 
 	scrapeDuration, err := time.ParseDuration(cfg.ScrapeDuration)

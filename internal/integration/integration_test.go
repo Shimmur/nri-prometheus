@@ -37,7 +37,13 @@ func BenchmarkIntegration(b *testing.B) {
 	}))
 	defer server.Close()
 
-	fr, err := endpoints.FixedRetriever(endpoints.TargetConfig{URLs: []string{server.URL}})
+	fr, err := endpoints.FixedRetriever(
+		endpoints.TargetConfig{
+			URLs: []endpoints.TargetURL{
+				{URL: server.URL},
+			},
+		},
+	)
 	assert.NoError(b, err)
 	var retrievers []endpoints.TargetRetriever
 	for i := 0; i < 20; i++ {
