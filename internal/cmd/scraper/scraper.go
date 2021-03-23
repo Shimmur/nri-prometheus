@@ -55,7 +55,6 @@ type Config struct {
 	DefinitionFilesPath                          string            `mapstructure:"definition_files_path"`
 	WorkerThreads                                int               `mapstructure:"worker_threads"`
 	UseKubernetes                                bool              `mapstructure:"use_kubernetes"`
-	AddedAttributes                              map[string]string `mapstructure:"added_attributes"`
 }
 
 const maskedLicenseKey = "****"
@@ -78,7 +77,7 @@ const queueLength = 100
 
 func validateConfig(cfg *Config) error {
 	requiredMsg := "%s is required and can't be empty"
-	if cfg.ClusterName == "" && cfg.Standalone {
+	if cfg.ClusterName == "" && cfg.Standalone && cfg.UseKubernetes {
 		return fmt.Errorf(requiredMsg, "cluster_name")
 	}
 	if cfg.LicenseKey == "" && cfg.Standalone {
@@ -151,11 +150,6 @@ func RunWithEmitters(cfg *Config, emitters []integration.Emitter) error {
 	if cfg.UseKubernetes {
 		attributes["k8s.cluster.name"] = cfg.ClusterName
 		attributes["clusterName"] = cfg.ClusterName
-	}
-
-	// Pull in any other static attributes we were passed
-	for key, val := range cfg.AddedAttributes {
-		attributes[key] = val
 	}
 
 	defaultTransformations := integration.ProcessingRule{

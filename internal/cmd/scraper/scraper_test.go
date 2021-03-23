@@ -107,7 +107,7 @@ func TestRunIntegrationOnce(t *testing.T) {
 	c := &Config{
 		TargetConfigs: []endpoints.TargetConfig{
 			{
-				URLs: []string{srv.URL, srv.URL},
+				URLs: []endpoints.TargetURL{{URL: srv.URL}, {URL: srv.URL}},
 			},
 		},
 		Emitters:       []string{"stdout"},
@@ -135,7 +135,7 @@ func TestScrapingAnsweringWithError(t *testing.T) {
 	c := &Config{
 		TargetConfigs: []endpoints.TargetConfig{
 			{
-				URLs: []string{srv.URL, srv.URL},
+				URLs: []endpoints.TargetURL{{URL: srv.URL}, {URL: srv.URL}},
 			},
 		},
 		Emitters:       []string{"stdout"},
@@ -164,7 +164,7 @@ func TestScrapingAnsweringUnexpectedData(t *testing.T) {
 	c := &Config{
 		TargetConfigs: []endpoints.TargetConfig{
 			{
-				URLs: []string{srv.URL, srv.URL},
+				URLs: []endpoints.TargetURL{{URL: srv.URL}, {URL: srv.URL}},
 			},
 		},
 		Emitters:       []string{"stdout"},
@@ -184,7 +184,7 @@ func TestScrapingNotAnswering(t *testing.T) {
 	c := &Config{
 		TargetConfigs: []endpoints.TargetConfig{
 			{
-				URLs: []string{"127.1.1.0:9012"},
+				URLs: []endpoints.TargetURL{{URL: "127.1.1.0:9012"}},
 			},
 		},
 		Emitters:       []string{"stdout"},

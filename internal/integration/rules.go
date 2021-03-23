@@ -4,6 +4,7 @@
 package integration
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/newrelic/nri-prometheus/internal/pkg/labels"
@@ -15,6 +16,7 @@ type ProcessingRule struct {
 	Description      string
 	AddAttributes    []AddAttributesRule  `mapstructure:"add_attributes"`
 	RenameAttributes []RenameRule         `mapstructure:"rename_attributes"`
+	RenameMetrics    []RenameMetricRule   `mapstructure:"rename_metrics"`
 	IgnoreMetrics    []IgnoreRule         `mapstructure:"ignore_metrics"`
 	CopyAttributes   []CopyAttributesRule `mapstructure:"copy_attributes"`
 }
@@ -51,6 +53,11 @@ type CopyAttributesRule struct {
 type AddAttributesRule struct {
 	MetricPrefix string                 `mapstructure:"metric_prefix"`
 	Attributes   map[string]interface{} `mapstructure:"attributes"`
+}
+
+type RenameMetricRule struct {
+	FromMetric string `mapstructure:"from_metric"`
+	ToMetric   string `mapstructure:"to_metric"`
 }
 
 // AutoDecorateLabels mixes automatically all the "_info" labels within the other metrics, when correspond, according to
@@ -235,6 +242,23 @@ func Rename(targetMetrics *TargetMetrics, rules []RenameRule) {
 	}
 }
 
+// RenameMetrics will transform the name of a metric, not the attributes
+func RenameMetrics(targetMetrics *TargetMetrics, rules []RenameMetricRule) {
+	for mi := range targetMetrics.Metrics {
+		// processing rules into it
+		for _, rr := range rules {
+			// We must rename to something, otherwise move along
+			if rr.ToMetric == "" {
+				continue
+			}
+
+			if targetMetrics.Metrics[mi].name == rr.FromMetric {
+				targetMetrics.Metrics[mi].name = rr.ToMetric
+			}
+		}
+	}
+}
+
 // AddAttributes applies the AddAttributeRule. It adds the attributes defined
 // in the rules to the metrics that match.
 func AddAttributes(targetMetrics *TargetMetrics, rules []AddAttributesRule) {
@@ -298,6 +322,20 @@ func Filter(targetMetrics *TargetMetrics, rules ignoreRules) {
 	targetMetrics.Metrics = copied
 }
 
+// ReNamespaceMetrics will transform the name of a metric, prepending a metrics namespace
+// as configured for the URL they were fetched from.
+func ReNamespaceMetrics(targetMetrics *TargetMetrics) {
+	for mi := range targetMetrics.Metrics {
+		if targetMetrics.Target.MetricNamespace != "" {
+			targetMetrics.Metrics[mi].name = fmt.Sprintf(
+				"%s.%s",
+				targetMetrics.Target.MetricNamespace,
+				targetMetrics.Metrics[mi].name,
+			)
+		}
+	}
+}
+
 // A Processor is something that transform the metrics of a target that are received by a channel, and submits them
 // by another channel
 type Processor func(pairs <-chan TargetMetrics) <-chan TargetMetrics
@@ -306,6 +344,7 @@ type Processor func(pairs <-chan TargetMetrics) <-chan TargetMetrics
 // processing and returns them through a channel.
 func RuleProcessor(processingRules []ProcessingRule, queueLength int) Processor {
 	var renameRules []RenameRule
+	var renameMetricRules []RenameMetricRule
 	var ignoreRules []IgnoreRule
 	var decorateRules []DecorateRule
 	var addAttributesRules []AddAttributesRule
@@ -329,6 +368,7 @@ func RuleProcessor(processingRules []ProcessingRule, queueLength int) Processor 
 				Attributes: attrs,
 			})
 		}
+		renameMetricRules = append(renameMetricRules, pr.RenameMetrics...)
 	}
 
 	return func(targetMetrics <-chan TargetMetrics) <-chan TargetMetrics {
@@ -345,6 +385,8 @@ func RuleProcessor(processingRules []ProcessingRule, queueLength int) Processor 
 				AddAttributes(&pair, addAttributesRules)
 				Decorate(&pair, decorateRules)
 				Rename(&pair, renameRules)
+				RenameMetrics(&pair, renameMetricRules)
+				ReNamespaceMetrics(&pair)
 
 				processedPairs <- pair
 			}

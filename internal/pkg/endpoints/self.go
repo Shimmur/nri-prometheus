@@ -17,7 +17,7 @@ type selfRetriever struct {
 func newSelfTargetConfig() TargetConfig {
 	return TargetConfig{
 		Description: selfDescription,
-		URLs:        []string{selfEndpoint},
+		URLs:        []TargetURL{{URL: selfEndpoint}},
 	}
 }
 

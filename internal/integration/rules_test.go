@@ -6,6 +6,7 @@ package integration
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -566,4 +567,35 @@ func TestIgnoreRules_IgnoreAllExceptExceptions(t *testing.T) {
 	assert.Len(t, actual, 2)
 	assert.Contains(t, actual, "redis_exporter_build_info")
 	assert.Contains(t, actual, "redis_instance_info")
+}
+
+func TestRenameMetrics(t *testing.T) {
+	entity := scrapeString(t, prometheusInput)
+	RenameMetrics(&entity, []RenameMetricRule{
+		{
+			FromMetric: "redis_exporter_build_info",
+			ToMetric:   "heorot",
+		},
+	})
+
+	var found bool
+
+	for _, metric := range entity.Metrics {
+		assert.NotEqual(t, metric.name, "redis_exporter_build_info")
+		if metric.name == "heorot" {
+			found = true
+		}
+	}
+
+	assert.True(t, found)
+}
+
+func TestRenamespaceMetrics(t *testing.T) {
+	entity := scrapeString(t, prometheusInput)
+	entity.Target.MetricNamespace = "beowulf"
+	ReNamespaceMetrics(&entity)
+
+	for _, metric := range entity.Metrics {
+		assert.Regexp(t, regexp.MustCompile(`^beowulf\.`), metric.name)
+	}
 }

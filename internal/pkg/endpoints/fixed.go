@@ -12,8 +12,13 @@ type fixedRetriever struct {
 // TargetConfig is used to parse endpoints from the configuration file.
 type TargetConfig struct {
 	Description string
-	URLs        []string  `mapstructure:"urls"`
-	TLSConfig   TLSConfig `mapstructure:"tls_config"`
+	URLs        []TargetURL `mapstructure:"urls"`
+	TLSConfig   TLSConfig   `mapstructure:"tls_config"`
+}
+
+type TargetURL struct {
+	URL             string `mapstructure:"url"`
+	MetricNamespace string `mapstructure:"metric_namespace"`
 }
 
 // TLSConfig is used to store all the configuration required to use Mutual TLS authentication.

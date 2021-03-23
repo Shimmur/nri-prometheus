@@ -54,7 +54,7 @@ func TestFromURL(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
-			targets, err := EndpointToTarget(TargetConfig{URLs: []string{c.input}})
+			targets, err := EndpointToTarget(TargetConfig{URLs: []TargetURL{{URL: c.input}}})
 			assert.NoError(t, err)
 			assert.Len(t, targets, 1)
 			assert.Equal(t, c.expectedName, targets[0].Name)
