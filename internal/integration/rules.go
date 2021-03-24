@@ -55,6 +55,8 @@ type AddAttributesRule struct {
 	Attributes   map[string]interface{} `mapstructure:"attributes"`
 }
 
+// A RenameMetricRule defines a rule to allow a metric to have its name
+// changed
 type RenameMetricRule struct {
 	FromMetric string `mapstructure:"from_metric"`
 	ToMetric   string `mapstructure:"to_metric"`

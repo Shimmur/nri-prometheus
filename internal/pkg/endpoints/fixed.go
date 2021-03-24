@@ -16,6 +16,7 @@ type TargetConfig struct {
 	TLSConfig   TLSConfig   `mapstructure:"tls_config"`
 }
 
+// A TargetURL is a combination of a URL and metadata about it
 type TargetURL struct {
 	URL             string `mapstructure:"url"`
 	MetricNamespace string `mapstructure:"metric_namespace"`
